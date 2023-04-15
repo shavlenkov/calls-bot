@@ -32,27 +32,36 @@ bot.hears('/allconnects', checkUser, (ctx) => {
   ctx.replyWithHTML(str, { disable_web_page_preview: true });
 });
 
+let chat;
 bot.on('message', (ctx) => {
-  const regExpValidateTime = /^([01]\d|2[0-3])[:. ]([0-5]\d)$/;
+  const regExpValidateTime = /^([01]\d|2[0-3])[:., ]([0-5]\d)$/;
   const regExpValidateTime2 = /^[0-2][0-4]$/;
-  const regExpTime = /^([01]\d|2[0-9])[:. ]([0-9]\d)$/;
+  const regExpTime = /^([01]\d|2[0-9])[:., ]([0-9]\d)$/;
   const regExpTime2 = /^[0-9][4-9]$/;
   const regExpTitleChat = /(?<=чате ).*$/;
+  const regExpTimeMessage = /[ ,.]/g;
   const text_message = ctx.message.text;
   if (ctx.message.chat.type === "private") {
     if (regExpValidateTime.test(text_message) || regExpValidateTime2.test(text_message) && stateMsg === 'time') {
+      let time_message;
+      if (regExpValidateTime.test(text_message)) {
+        time_message = text_message.replace(regExpTimeMessage, ':');
+      } else if (regExpValidateTime2.test(text_message)) {
+        time_message = text_message + ':00';
+      }
+      bot.telegram.sendMessage(chat.id, `${ctx.message.chat.username} хочет сегодня организовать созвон в ${time_message}`);
+      chat = {};
       ctx.reply('Время зафиксировано');
       stateMsg = 'pool';
     } else if(regExpTime.test(text_message) || regExpTime2.test(text_message)) {
       stateMsg = 'time';
-      ctx.reply('Уууупс, такого времени нету))))');
+      ctx.reply('Уууупс, такого времени еще не придумали))))');
     } else if (regExpTitleChat.test(text_message)[0] || regExpTitleChat.test(text_message)) {
       let title_chat = text_message.match(regExpTitleChat)[0];
-      let chat = chats.find(chat => chat.title === title_chat);
+      chat = chats.find(chat => chat.title === title_chat);
       if (chat) {
         stateMsg = 'time';
-        bot.telegram.sendMessage(chat.id, `${ctx.message.chat.username} хочет сегодня организовать созвон`);
-        ctx.reply('Во сколько ты хочешь организовать созвон?(формат ввода: XX.XX, XX:XX, XX XX или XX)');
+        ctx.reply('Во сколько ты хочешь организовать созвон?(формат ввода: XX.XX, XX,XX, XX:XX, XX XX или XX)');
       } else {
         stateMsg = 'pool';
         ctx.reply('Такого чата в базе не найдено!!!');
