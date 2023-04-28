@@ -160,7 +160,7 @@ bot.on("message", async (ctx) => {
   let timeZone;
   const optionsPool = ["Я буду", "Меня не будет", "Буду позже"];
 
-  if (ctx.message.chat.type === "private") {
+  if (ctx.message.chat.type === "private" && ctx.message.text !== "/start") {
     if (
       regExpValidateTime.test(text_message) ||
       (regExpValidateTime2.test(text_message) && stateMsg === "time")
@@ -172,7 +172,7 @@ bot.on("message", async (ctx) => {
         if (text_message === "24") {
           time_message = "00:00";
         } else {
-          time_message = text_message + ":00";
+          time_message = text_message.match(/\d+/)[0] + ":00";
         }
       }
       if (cityMatch !== "") {
