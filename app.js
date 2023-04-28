@@ -32,8 +32,48 @@ bot.hears('/allconnects', checkUser, (ctx) => {
   ctx.replyWithHTML(str, { disable_web_page_preview: true });
 });
 
+let users = []
+
+bot.on('poll_answer', (ctx) => {
+
+  let { username, first_name } = ctx.update.poll_answer.user;
+  let option_id = ctx.update.poll_answer.option_ids[0];
+
+  if(option_id == 0) {
+    users.push({username: username, first_name: first_name})
+  }
+
+})
+
+bot.command('getpollusers', (ctx) => {
+
+  let str = `
+     На созвоне никого не будет
+    `
+
+  if(users.length != 0) {
+    str = `
+     На совзоне будут:
+    `
+
+    users.map((user) => {
+      str += `\n<a href="https://${user.username}.t.me">${user.first_name}</a>`
+    })
+  }
+
+
+  ctx.replyWithHTML(str, { disable_web_page_preview: true });
+})
+
 let chat;
-bot.on('message', (ctx) => {
+
+const options = [
+  'Я буду',
+  'Меня не будет',
+  'Буду позже',
+];
+
+bot.on('message', async (ctx) => {
   const regExpValidateTime = /^([01]\d|2[0-3])[:., ]([0-5]\d)$/;
   const regExpValidateTime2 = /^[0-2][0-4]$/;
   const regExpTime = /^([01]\d|2[0-9])[:., ]([0-9]\d)$/;
@@ -41,15 +81,25 @@ bot.on('message', (ctx) => {
   const regExpTitleChat = /(?<=чате ).*$/;
   const regExpTimeMessage = /[ ,.]/g;
   const text_message = ctx.message.text;
+
   if (ctx.message.chat.type === "private") {
+
     if (regExpValidateTime.test(text_message) || regExpValidateTime2.test(text_message) && stateMsg === 'time') {
       let time_message;
+
       if (regExpValidateTime.test(text_message)) {
         time_message = text_message.replace(regExpTimeMessage, ':');
       } else if (regExpValidateTime2.test(text_message)) {
         time_message = text_message + ':00';
       }
-      bot.telegram.sendMessage(chat.id, `${ctx.message.chat.username} хочет сегодня организовать созвон в ${time_message}`);
+
+      const question = `Созвон на ${time_message}`;
+
+      await bot.telegram.sendMessage(chat.id, `${ctx.message.chat.username} хочет сегодня организовать созвон в ${time_message}`);
+
+      await bot.telegram.sendPoll(chat.id, question, options, { is_anonymous: false });
+
+
       chat = {};
       ctx.reply('Время зафиксировано');
       stateMsg = 'pool';
@@ -58,7 +108,9 @@ bot.on('message', (ctx) => {
       ctx.reply('Уууупс, такого времени еще не придумали))))');
     } else if (regExpTitleChat.test(text_message)[0] || regExpTitleChat.test(text_message)) {
       let title_chat = text_message.match(regExpTitleChat)[0];
+
       chat = chats.find(chat => chat.title === title_chat);
+
       if (chat) {
         stateMsg = 'time';
         ctx.reply('Во сколько ты хочешь организовать созвон?(формат ввода: XX.XX, XX,XX, XX:XX, XX XX или XX)');
