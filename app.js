@@ -21,6 +21,36 @@ let stateMsg = "pool";
 let chat;
 let callDay = "сегодня";
 
+function findCityMatch(word, wordsArray) {
+  for (let i = 0; i < wordsArray.length; i++) {
+    const baseWord = wordsArray[i].slice(0, -1);
+    if (baseWord === word || baseWord === word.slice(0, -1)) {
+      return word.slice(0, -1);
+    }
+  }
+  return null;
+}
+
+function findCityName(message) {
+  let city = [];
+  for (let i = 0; i < cities.length; i++) {
+    const cityData = cities[i].split("\t");
+    if (cityData[3] !== "" && cityData[3].includes(",")) {
+      city = cityData[3].split(",");
+    } else {
+      city.push(cityData[3]);
+    }
+    for (let j = 0; j < city.length; j++) {
+      if (findCityMatch(message.slice(0, -1), city)) {
+        return cityData[17];
+      } else if (city[j].toLowerCase() === message.toLowerCase()) {
+        return cityData[17];
+      }
+    }
+  }
+  return null;
+}
+
 bot.start((ctx) => {
   chats.push(ctx.message.chat);
   const uniqueIds = [];
@@ -113,36 +143,6 @@ bot.hears("/getpollusers", (ctx) => {
   }
   ctx.replyWithHTML(str, { disable_web_page_preview: true });
 });
-
-function findMatch(word, wordsArray) {
-  for (let i = 0; i < wordsArray.length; i++) {
-    const baseWord = wordsArray[i].slice(0, -1);
-    if (baseWord === word || baseWord === word.slice(0, -1)) {
-      return word.slice(0, -1);
-    }
-  }
-  return null;
-}
-
-function findCityName(message) {
-  let city = [];
-  for (let i = 0; i < cities.length; i++) {
-    const cityData = cities[i].split("\t");
-    if (cityData[3] !== "" && cityData[3].includes(",")) {
-      city = cityData[3].split(",");
-    } else {
-      city.push(cityData[3]);
-    }
-    for (let j = 0; j < city.length; j++) {
-      if (findMatch(message.slice(0, -1), city)) {
-        return cityData[17];
-      } else if (city[j].toLowerCase() === message.toLowerCase()) {
-        return cityData[17];
-      }
-    }
-  }
-  return null;
-}
 
 bot.on("message", async (ctx) => {
   const regExpValidateTime = /^([01]\d|2[0-3])[:., ]([0-5]\d)/;
