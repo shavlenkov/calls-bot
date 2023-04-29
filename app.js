@@ -12,6 +12,22 @@ const cities = citiesData.split("\n");
 const adminUsersId = [];
 const callUsers = [];
 
+bot.telegram.setMyCommands([
+  {
+    command: "/start",
+    description: "Start bot and get notifications from it",
+  },
+  {
+    command: "/allconnects",
+    description:
+      "Get all users and groups which connected to bot(Admins command)",
+  },
+  {
+    command: "/getpollusers",
+    description: "Get all users who will be on the call",
+  },
+]);
+
 const checkUser = (ctx, next) =>
   adminUsersId.includes(ctx.from.id)
     ? next()
@@ -20,6 +36,19 @@ ADMINS_ID.split(", ").forEach((id) => adminUsersId.push(+id));
 let stateMsg = "pool";
 let chat;
 let callDay = "сегодня";
+const optionsPool = ["Я буду", "Меня не будет", "Буду позже"];
+const regExpValidateTime = /^([01]\d|2[0-3])[:., ]([0-5]\d)/;
+const regExpValidateTime2 = /^([01]?[0-9]|2[0-4])/;
+const regExpTime = /^([01]\d|[0-2][0-9])[:., ]([0-9]\d)/;
+const regExpTime2 = /^[0-9][4-9]/;
+const regExpTimePmAm = /^\d{1,2}([:., ]\d{2})?\s*(am|pm|PM|AM|Am|Pm|pM|aM)/;
+const regExpTimePmAm2 = /(\d+)\s?(am|pm|PM|AM|Am|Pm|pM|aM)/i;
+const regExpTitleChat = /(?<=чате ).*$/;
+const regExpCity = /по\s+(.*)/i;
+const regExpTimeMessage = /[ ,.]/g;
+const regExpTomorrow = /завтра/gi;
+const regExpWeekDays =
+  /понедельник|вторник|сред[ау]|четверг|пятниц[ау]|суббот[ау]|воскресенье/gi;
 
 function findCityMatch(word, wordsArray) {
   for (let i = 0; i < wordsArray.length; i++) {
@@ -51,7 +80,7 @@ function findCityName(message) {
   return null;
 }
 
-bot.start((ctx) => {
+bot.start(async (ctx) => {
   chats.push(ctx.message.chat);
   const uniqueIds = [];
   const newChats = [];
@@ -61,8 +90,12 @@ bot.start((ctx) => {
       newChats.push(chat);
     }
   });
+  ctx.reply(
+    `Привет👋, это бот🤖 для групп👥, чтобы создавть опросы насчет созвонов📞...
+    Формат создания опросов - " (какой-то текст) (завтра, сегодня, в суботту и т. д., этот параметр может быть в любом месте сообщения, а может и вообще его не быть) в чате (Название чата)"
+    Пример сообщения - "Я хочу организовать созвон завтра в чате Бот для созвонов"`
+  );
   fs.writeFileSync("database/db.json", JSON.stringify(newChats));
-  ctx.reply("Hello, this bot...");
 });
 
 bot.hears("/allconnects", checkUser, (ctx) => {
@@ -72,12 +105,12 @@ bot.hears("/allconnects", checkUser, (ctx) => {
   );
   let str = "";
 
-  str += "Users:";
+  str += "Пользователи:";
   privates.forEach(
     (user) =>
       (str += `\n <a href="https://${user.username}.t.me">${user.first_name}</a>`)
   );
-  str += "\nGroups: ";
+  str += "\nГруппы: ";
   groups.forEach((group) => (str += `\n ${group.title}`));
   ctx.replyWithHTML(str, { disable_web_page_preview: true });
 });
@@ -85,19 +118,20 @@ bot.hears("/allconnects", checkUser, (ctx) => {
 // on future)))
 /*
 function getNextWeekdayDate(weekday) {
-  const weekdaysRegex = /понедельник|вторник|сред[ау]|четверг|пятниц[ау]|суббот[ау]|воскресенье/i;
+  const weekdaysRegex =
+    /понедельник|вторник|сред[ау]|четверг|пятниц[ау]|суббот[ау]|воскресенье/i;
   if (!weekdaysRegex.test(weekday)) {
     throw new Error("Invalid weekday name");
   }
 
   const weekdaysMap = {
-    "понедельник": 1,
-    "вторник": 2,
-    "среду": 3,
-    "четверг": 4,
-    "пятницу": 5,
-    "субботу": 6,
-    "воскресенье": 0
+    понедельник: 1,
+    вторник: 2,
+    среду: 3,
+    четверг: 4,
+    пятницу: 5,
+    субботу: 6,
+    воскресенье: 0,
   };
 
   const today = new Date();
@@ -117,7 +151,7 @@ function getNextWeekdayDate(weekday) {
 // Пример использования
 const weekday = "вторник";
 const nextWeekdayDate = getNextWeekdayDate(weekday);
-console.log(getNextWeekdayDate(weekday))
+console.log(getNextWeekdayDate(weekday));
 console.log(`Следующий ${weekday} - ${nextWeekdayDate.toLocaleDateString()}`);
 */
 
@@ -127,38 +161,34 @@ bot.on("poll_answer", (ctx) => {
 
   if (option_id === 0) {
     callUsers.push({ id: id, username: username, first_name: first_name });
+    bot.telegram.sendMessage(
+      id,
+      `Спасибо за ваш ответ, за 20 минут до созвона наш бот уведомит вас!!!`
+    );
   }
 });
 
 bot.hears("/getpollusers", (ctx) => {
   let str = "";
-
-  if (callUsers.length !== 0) {
-    str = `На совзоне будут:\n`;
-    callUsers.map((user) => {
-      str += ` <a href="https://${user.username}.t.me">${user.first_name}</a>`;
-    });
+  if (ctx.message.chat.type === "private") {
+    ctx.reply("Уупсс..., эту команду нужно использовать только в группе)))");
   } else {
-    str += "На созвоне никого не будет))))";
+    if (callUsers.length !== 0) {
+      str = `На совзоне будут:\n`;
+      callUsers.map((user) => {
+        str += ` <a href="https://${user.username}.t.me">${user.first_name}</a>`;
+      });
+    } else {
+      str += "На созвоне никого не будет))))";
+    }
+    ctx.replyWithHTML(str, { disable_web_page_preview: true });
   }
-  ctx.replyWithHTML(str, { disable_web_page_preview: true });
 });
 
 bot.on("message", async (ctx) => {
-  const regExpValidateTime = /^([01]\d|2[0-3])[:., ]([0-5]\d)/;
-  const regExpValidateTime2 = /^([01]?[0-9]|2[0-4])/;
-  const regExpTime = /^([01]\d|[0-2][0-9])[:., ]([0-9]\d)/;
-  const regExpTime2 = /^[0-9][4-9]/;
-  const regExpTitleChat = /(?<=чате ).*$/;
-  const regExpCity = /по\s+(.*)/i;
-  const regExpTimeMessage = /[ ,.]/g;
-  const regExpTomorrow = /завтра/gi;
-  const regExpWeekDays =
-    /понедельник|вторник|сред[ау]|четверг|пятниц[ау]|суббот[ау]|воскресенье/gi;
   const text_message = ctx.message.text;
   const cityMatch = text_message.match(regExpCity);
   let timeZone;
-  const optionsPool = ["Я буду", "Меня не будет", "Буду позже"];
 
   if (ctx.message.chat.type === "private" && ctx.message.text !== "/start") {
     if (
@@ -167,7 +197,27 @@ bot.on("message", async (ctx) => {
     ) {
       let time_message;
       if (regExpValidateTime.test(text_message)) {
-        time_message = text_message.replace(regExpTimeMessage, ":");
+        time_message =
+          text_message.substring(0, 2).replace(regExpTimeMessage, ":") + ":00";
+      } else if (regExpTimePmAm.test(text_message)) {
+        let time = text_message.match(regExpTimePmAm2);
+        let hours = Number(time[1]);
+        let minutes = "00";
+
+        if (hours < 10) {
+          hours = "0" + hours;
+          hours = Number(hours);
+        }
+
+        if (time[2].toLowerCase() === "pm" && hours !== 12) {
+          hours += 12;
+        }
+
+        if (text_message.toLowerCase().includes(cityMatch[0])) {
+          time_message = hours + ":" + minutes;
+        } else {
+          time_message = hours + ":" + minutes + " " + time[2].toLowerCase();
+        }
       } else if (regExpValidateTime2.test(text_message)) {
         if (text_message === "24") {
           time_message = "00:00";
@@ -175,21 +225,21 @@ bot.on("message", async (ctx) => {
           time_message = text_message.match(/\d+/)[0] + ":00";
         }
       }
-      if (cityMatch !== "") {
+      if (cityMatch !== null) {
         timeZone = findCityName(cityMatch[1]);
-        ctx.reply("Время зафиксировано");
-        stateMsg = "pool";
+        ctx.reply(`Опрос создан в группе - ${chat.title}`);
+        stateMsg = "poll";
+        await bot.telegram.sendPoll(
+          chat.id,
+          `${ctx.message.chat.username} хочет организовать созвон ${callDay} на ${time_message} по времени ${timeZone}`,
+          optionsPool,
+          { is_anonymous: false }
+        );
+        callDay = "сегодня";
+        chat = {};
       } else {
-        ctx.reply("Город не найден)))");
+        ctx.reply("Не валидное сообщение...");
       }
-      await bot.telegram.sendPoll(
-        chat.id,
-        `${ctx.message.chat.username} хочет организовать созвон ${callDay} на ${time_message} по времени ${timeZone}`,
-        optionsPool,
-        { is_anonymous: false }
-      );
-      callDay = "сегодня";
-      chat = {};
     } else if (
       regExpTime.test(text_message) ||
       regExpTime2.test(text_message)
@@ -210,10 +260,10 @@ bot.on("message", async (ctx) => {
         }
         stateMsg = "time";
         ctx.reply(
-          "Во сколько ты хочешь организовать созвон?(формат ввода: XX.XX, XX,XX, XX:XX, XX XX или XX по (город), например(по Киеву)"
+          "Во сколько ты хочешь организовать созвон?(формат ввода: XX.XX, XX,XX, XX:XX, XX XX, XX am|pm, XX:XX am|pm или XX по (город), например(по Киеву)"
         );
       } else {
-        stateMsg = "pool";
+        stateMsg = "poll";
         ctx.reply("Такого чата в базе не найдено!!!");
       }
     } else {
