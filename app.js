@@ -1,6 +1,7 @@
 import { Telegraf } from "telegraf";
 import dotenv from 'dotenv';
 import fs from 'fs';
+import cron from 'node-cron'
 
 dotenv.config();
 
@@ -36,11 +37,11 @@ let users = []
 
 bot.on('poll_answer', (ctx) => {
 
-  let { username, first_name } = ctx.update.poll_answer.user;
+  let { id, username, first_name } = ctx.update.poll_answer.user;
   let option_id = ctx.update.poll_answer.option_ids[0];
 
   if(option_id == 0) {
-    users.push({username: username, first_name: first_name})
+    users.push({id: id, username: username, first_name: first_name})
   }
 
 })
@@ -93,12 +94,69 @@ bot.on('message', async (ctx) => {
         time_message = text_message + ':00';
       }
 
-      const question = `Созвон на ${time_message}`;
+      let question = `Созвон на ${time_message}`;
 
-      await bot.telegram.sendMessage(chat.id, `${ctx.message.chat.username} хочет сегодня организовать созвон в ${time_message}`);
+      let message = await bot.telegram.sendMessage(chat.id, `<a href="https://${ctx.message.chat.username}.t.me">${ctx.message.chat.username}</a> хочет сегодня организовать созвон на ${time_message}`, { parse_mode: 'HTML', disable_web_page_preview: true });
 
-      await bot.telegram.sendPoll(chat.id, question, options, { is_anonymous: false });
+      let poll = await bot.telegram.sendPoll(chat.id, question, options, { is_anonymous: false });
 
+      let groupId = String(Math.abs(message.chat.id)).slice(3);
+      let title = message.chat.title;
+
+      let hour = parseInt(time_message.split(":")[0], 10);
+      let minute = parseInt(time_message.split(":")[1], 10);
+
+      let optionsCron = {
+        scheduled: true,
+        timezone: 'Europe/Kiev'
+      }
+
+      cron.schedule(`${minute} ${hour} * * * `, async () => {
+
+        for(let i = 0; i < users.length; i++) {
+          await bot.telegram.sendMessage(users[i].id, `Заходи на созвон в группу <a href="https://t.me/c/${groupId}">${title}</a>`, { parse_mode: 'HTML', disable_web_page_preview: true });
+        }
+
+        await ctx.telegram.deleteMessage(message.chat.id, message.message_id);
+        await ctx.telegram.deleteMessage(message.chat.id, poll.message_id);
+
+      }, optionsCron);
+
+      cron.schedule(`${(minute - 5 + 60) % 60} ${(minute >= 25) ? hour  : hour - 1} * * * `, async () => {
+
+        for(let i = 0; i < users.length; i++) {
+          await bot.telegram.sendMessage(users[i].id, `Через 5 мин у тебя созвон в группе <a href="https://t.me/c/${groupId}">${title}</a>`, { parse_mode: 'HTML', disable_web_page_preview: true });
+        }
+
+      }, optionsCron);
+
+      cron.schedule(`${(minute - 10 + 60) % 60} ${(minute >= 20) ? hour  : hour - 1} * * * `, async () => {
+
+        for(let i = 0; i < users.length; i++) {
+          await bot.telegram.sendMessage(users[i].id, `Через 10 мин у тебя созвон в группе <a href="https://t.me/c/${groupId}">${title}</a>`, { parse_mode: 'HTML', disable_web_page_preview: true });
+        }
+      }, optionsCron);
+
+      cron.schedule(`${(minute - 15 + 60) % 60} ${(minute >= 15) ? hour  : hour - 1} * * * `, async () => {
+
+        for(let i = 0; i < users.length; i++) {
+          await bot.telegram.sendMessage(users[i].id, `Через 15 мин у тебя созвон в группе <a href="https://t.me/c/${groupId}">${title}</a>`, { parse_mode: 'HTML', disable_web_page_preview: true });
+        }
+      }, optionsCron);
+
+      cron.schedule(`${(minute - 30 + 60) % 60} ${(minute >= 30) ? hour  : hour - 1} * * * `, async () => {
+
+        for(let i = 0; i < users.length; i++) {
+          await bot.telegram.sendMessage(users[i].id, `Через 30 мин у тебя созвон в групе <a href="https://t.me/c/${groupId}">${title}</a>`, { parse_mode: 'HTML', disable_web_page_preview: true });
+        }
+      }, optionsCron);
+
+      cron.schedule(`${minute} ${hour - 1} * * * `, async () => {
+
+        for(let i = 0; i < users.length; i++) {
+          await bot.telegram.sendMessage(users[i].id, `Через час у тебя созвон в группе <a href="https://t.me/c/${groupId}">${title}</a>`, { parse_mode: 'HTML', disable_web_page_preview: true });
+        }
+      }, optionsCron);
 
       chat = {};
       ctx.reply('Время зафиксировано');
